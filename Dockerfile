@@ -44,7 +44,7 @@ RUN npm install typescript -g
 # Copy local code to the container image.
 COPY . .
 
-RUN tsc
+RUN tsc --build tsconfig.json
 
 RUN rm -rf src
 
