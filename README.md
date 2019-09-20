@@ -108,10 +108,9 @@ NUMBER_OF_SCREENSHOTS=1
 
 ### From Source:
 
-To build the image use: \$ `npm run cloud-run-build` To deploy the built image:
-\$ `npm run cloud-run-deploy-only`
-
-To build and deploy: \$ `npm run cloud-run-deploy`
+To build the image use: \$ `npm run cloud-run-build`  
+To deploy the built image: \$ `npm run cloud-run-deploy-only`  
+To build and deploy: \$ `npm run cloud-run-deploy`  
 
 ## Configuration
 
