@@ -89,8 +89,8 @@ If you change it, make sure a Campaign Manager User Profile is created with this
 service account email address.
 
 ### From GCR:
-
-\$ ```gcloud alpha run deploy [SERVICE_NAME] \
+```
+$ gcloud alpha run deploy [SERVICE_NAME] \
 --image gcr.io/creative-screenshots-external/creative-screenshots:stable \
 --memory 2G \
 --platform managed \
@@ -103,7 +103,8 @@ SCREENSHOT_PADDING=16,\
 SCREENSHOT_QUALITY=100,\
 MS_BEFORE_SCREENSHOT=1000,\
 MS_BEFORE_SCREENSHOT_INSTREAM=8000,\
-NUMBER_OF_SCREENSHOTS=1```
+NUMBER_OF_SCREENSHOTS=1
+```
 
 ### From Source:
 
