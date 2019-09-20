@@ -90,10 +90,20 @@ service account email address.
 
 ### From GCR:
 
-\$ `gcloud alpha run deploy [SERVICE_NAME] --image gcr.io/$(gcloud config
-get-value project)/$npm_package_config_service_name --memory 2G
---update-env-vars CLOUD_PROJECT_ID=$(gcloud config get-value
-project),CLOUD_RUN_REGION=us-central1,CLOUD_BUCKET=[CLOUD_BUCKET],FILE_PATH_PATTERN="{accountId}/{advertiserId}/{campaignId}/{placementId}_{index}.jpg",SCREENSHOT_PADDING=16,SCREENSHOT_QUALITY=100,MS_BEFORE_SCREENSHOT=1000,MS_BEFORE_SCREENSHOT_INSTREAM=8000,NUMBER_OF_SCREENSHOTS=1`
+\$ ```gcloud alpha run deploy [SERVICE_NAME] \
+--image gcr.io/creative-screenshots-external/creative-screenshots:stable \
+--memory 2G \
+--platform managed \
+--update-env-vars \
+CLOUD_PROJECT_ID=$(gcloud config get-value project),\
+CLOUD_RUN_REGION=us-central1,\
+CLOUD_BUCKET=creative-screenshots-test-output,\
+FILE_PATH_PATTERN="{accountId}/{advertiserId}/{campaignId}/{placementId}_{index}.jpg",\
+SCREENSHOT_PADDING=16,\
+SCREENSHOT_QUALITY=100,\
+MS_BEFORE_SCREENSHOT=1000,\
+MS_BEFORE_SCREENSHOT_INSTREAM=8000,\
+NUMBER_OF_SCREENSHOTS=1```
 
 ### From Source:
 
