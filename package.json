@@ -3,15 +3,16 @@
   "version": "1.0.0",
   "description": "Capture screenshots of Campaign Manager Tags",
   "config": {
-    "cloud_bucket": "creative-screenshots-output",
-    "cloud_run_region": "us-central1",
-    "service_name": "screenshot-service",
+    "cloud_bucket": "cs_test_output",
+    "cloud_run_region": "us-west2",
+    "service_name": "creative-screenshot-service",
     "file_path_pattern": "{accountId}/{advertiserId}/{campaignId}/{placementId}_{index}.jpg",
     "screenshot_padding": 16,
     "screenshot_quality": 100,
     "ms_before_screenshot": 1000,
     "ms_before_screenshot_instream": 8000,
-    "number_of_screenshots": 15
+    "number_of_screenshots": 15,
+    "service_acccount": "creative-screenshots-test-sa@creative-screenshots-test.iam.gserviceaccount.com"
   },
   "main": "index.js",
   "scripts": {
@@ -21,7 +22,7 @@
     "build-ts": "tsc",
     "watch-ts": "tsc -w",
     "cloud-run-build": "gcloud builds submit --tag gcr.io/$(gcloud config get-value project)/$npm_package_config_service_name",
-    "cloud-run-deploy-only": "gcloud alpha run deploy $npm_package_config_service_name --image gcr.io/$(gcloud config get-value project)/$npm_package_config_service_name --memory 2G --update-env-vars CLOUD_PROJECT_ID=$(gcloud config get-value project),CLOUD_RUN_REGION=$npm_package_config_cloud_run_region,CLOUD_BUCKET=$npm_package_config_cloud_bucket,FILE_PATH_PATTERN=$npm_package_config_file_path_pattern,SCREENSHOT_PADDING=$npm_package_config_screenshot_padding,SCREENSHOT_QUALITY=$npm_package_config_screenshot_quality,MS_BEFORE_SCREENSHOT=$npm_package_config_ms_before_screenshot,MS_BEFORE_SCREENSHOT_INSTREAM=$npm_package_config_ms_before_screenshot_instream,NUMBER_OF_SCREENSHOTS=$npm_package_config_number_of_screenshots",
+    "cloud-run-deploy-only": "gcloud alpha run deploy $npm_package_config_service_name --image gcr.io/$(gcloud config get-value project)/$npm_package_config_service_name --memory 2G --update-env-vars CLOUD_PROJECT_ID=$(gcloud config get-value project),CLOUD_RUN_REGION=$npm_package_config_cloud_run_region,CLOUD_BUCKET=$npm_package_config_cloud_bucket,FILE_PATH_PATTERN=$npm_package_config_file_path_pattern,SCREENSHOT_PADDING=$npm_package_config_screenshot_padding,SCREENSHOT_QUALITY=$npm_package_config_screenshot_quality,MS_BEFORE_SCREENSHOT=$npm_package_config_ms_before_screenshot,MS_BEFORE_SCREENSHOT_INSTREAM=$npm_package_config_ms_before_screenshot_instream,NUMBER_OF_SCREENSHOTS=$npm_package_config_number_of_screenshots --platform managed --service-account=$npm_package_config_service_account",
     "cloud-run-deploy": "npm run cloud-run-build && npm run cloud-run-deploy-only"
   },
   "author": "Google Inc.",

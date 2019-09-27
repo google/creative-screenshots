@@ -135,7 +135,7 @@ async function generateTags(
   const tagsResponse:
       GaxiosResponse<dfareporting_v3_3.Schema$PlacementsGenerateTagsResponse> =
           await dfaClient.placements.generatetags(tagsRequest);
-  // const pubsub = new PubSub();
+
   const client = new v2beta3.CloudTasksClient();
   const parent = client.queuePath(
       process.env.CLOUD_PROJECT_ID, process.env.CLOUD_RUN_REGION,
