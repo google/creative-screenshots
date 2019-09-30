@@ -43,10 +43,10 @@ render-screenshot | 5/s          | 40
 
 To set up the queues as per above settings you can run the following commands:
 
-**Enable Google Cloud Tasks Service:** $ `gcloud services enable
-cloudtasks.googleapis.com`
+**Enable Google Cloud Tasks Service:**<br />
+\$ `gcloud services enable cloudtasks.googleapis.com`
 
-**Create Queues:**
+**Create Queues:**<br />
 \$ `gcloud tasks queues create list-advertisers --max-dispatches-per-second=1 --max-concurrent-dispatches=1`<br />
 \$ `gcloud tasks queues create list-placements --max-dispatches-per-second=5 --max-concurrent-dispatches=5`<br />
 \$ `gcloud tasks queues create generate-tags --max-dispatches-per-second=5 --max-concurrent-dispatches=25`<br />
@@ -69,6 +69,16 @@ Create a Google Cloud Bucket where all images will be stored. \
 $ `gsutil mb gs://[BUCKET_NAME]/` \
 [Additional documentation on creating Google Cloud Buckets.](https://cloud.google.com/storage/docs/creating-buckets#storage-create-bucket-gsutil)
 
+### Service Account
+Create a new IAM Service Account with the following roles:
+* Cloud Tasks Enqueuer
+* Cloud Datastore User
+* Storage Object Creator
+
+**Enable Campgaign Manager API service:**<br />
+\$ `gcloud services enable dfareporting.googleapis.com`
+
+
 ### Google Marketing Platform
 
 Create a Campaign Manager User Profile with the service account's email address
@@ -90,10 +100,11 @@ service account email address.
 
 ### From GCR:
 ```
-$ gcloud alpha run deploy [SERVICE_NAME] \
+$ gcloud beta run deploy [SERVICE_NAME] \
 --image gcr.io/creative-screenshots-external/creative-screenshots:stable \
 --memory 2G \
 --platform managed \
+--service-account "[SERVICE_ACCOUNT_EMAIL]" \
 --update-env-vars \
 CLOUD_PROJECT_ID=$(gcloud config get-value project),\
 CLOUD_RUN_REGION=us-central1,\
