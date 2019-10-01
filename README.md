@@ -137,7 +137,7 @@ SCREENSHOT_PADDING            | Total number of padding pixels around the screen
 SCREENSHOT_QUALITY            | JPG Quality setting.                                                                                                                                                                                                                                                                       | 100
 MS_BEFORE_SCREENSHOT          | Milliseconds before taking a screenshot, this allows for a bit of the animation to start before taking a screenshot. This value is ignored if NUMBER_OF_SCREENSHOTS > 1.                                                                                                                   | 1000
 MS_BEFORE_SCREENSHOT_INSTREAM | Milliseconds before taking a screenshot of a Video INSTREAM tag. This value is ignored if NUMBER_OF_SCREENSHOTS > 1.                                                                                                                                                                       | 8000
-NUMBER_OF_SCREENSHOTS         | Number of screenshots to take for each placement. Display Ads will use a default of 15 second animation devided by NUMBER_OF_SCREENSHOTS. INSTREAM/VAST tags will use media duration devided by NUMBER_OF_SCREENSHOTS. Screenshot index can be captured in the file path by using {index}. | 1
+NUMBER_OF_SCREENSHOTS         | Number of screenshots to take for each placement. Display Ads will use a default of 15 second animation divided by NUMBER_OF_SCREENSHOTS. INSTREAM/VAST tags will use media duration divided by NUMBER_OF_SCREENSHOTS. Screenshot index can be captured in the file path by using {index}. | 1
 
 ## Run
 
