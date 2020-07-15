@@ -17,7 +17,7 @@
 // tslint:disable-next-line:no-require-imports No ts declaration available.
 import {CloudTasksClient} from '@google-cloud/tasks';
 import {Request, Response} from 'express';
-import {auth} from 'google-auth-library';
+import {GoogleAuth} from 'google-auth-library';
 import {dfareporting_v3_3, google} from 'googleapis';
 import {CLOUD_TASK_QUEUES, CM_TRAFFICKING_SCOPES} from './common/constants';
 import {ListPlacementsAttributes, CampaignPlacement, PlacementsList} from './common/interfaces';
@@ -201,7 +201,8 @@ export async function listPlacementsHandler(req: Request, res: Response, next: F
   console.log(`LIST PLACEMENTS: ${JSON.stringify(attributes)}`);
 
   try {
-    const client = await auth.getClient({scopes: [...CM_TRAFFICKING_SCOPES]});
+    const auth = new GoogleAuth({scopes: [...CM_TRAFFICKING_SCOPES]});
+    const client = await auth.getClient();
     google.options({timeout: 60000, auth: client});
 
     const dfaClient = google.dfareporting('v3.3');
@@ -232,7 +233,7 @@ export async function listPlacementsHandler(req: Request, res: Response, next: F
 
   } catch (error) {
     console.error(error);
-    next();
+    res.status(500).end();
   }
 
   res.status(204).end();
