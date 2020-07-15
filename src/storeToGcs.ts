@@ -16,8 +16,6 @@
 
 import {Datastore} from '@google-cloud/datastore';
 import {File, Storage} from '@google-cloud/storage';
-import {Request, Response} from 'express';
-
 import {StoreImageAttributes} from './common/interfaces';
 
 /**

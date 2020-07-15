@@ -24,8 +24,7 @@ import {storeToGcsHandler} from './storeToGcs';
 
 const PADDING: number = Number(process.env.SCREENSHOT_PADDING);
 const MS_BEFORE_SCREENSHOT: number = Number(process.env.MS_BEFORE_SCREENSHOT);
-const MS_BEFORE_SCREENSHOT_INSTREAM: number =
-    Number(process.env.MS_BEFORE_SCREENSHOT_INSTREAM);
+const MS_BEFORE_SCREENSHOT_INSTREAM: number = Number(process.env.MS_BEFORE_SCREENSHOT_INSTREAM);
 const SCREENSHOT_QUALITY: number = Number(process.env.SCREENSHOT_QUALITY);
 const NUMBER_OF_SCREENSHOTS: number = Number(process.env.NUMBER_OF_SCREENSHOTS);
 const DEFAULT_ANIMATION_LENGTH: number = 15;

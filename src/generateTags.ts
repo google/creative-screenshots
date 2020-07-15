@@ -15,16 +15,17 @@
  */
 
 // tslint:disable-next-line:no-require-imports No ts declaration available.
-const {v2beta3} = require('@google-cloud/tasks');
-
+import {CloudTasksClient} from '@google-cloud/tasks';
 import {Datastore} from '@google-cloud/datastore';
 import cheerio from 'cheerio';
 import {Request, Response} from 'express';
-import {Gaxios, GaxiosResponse} from 'gaxios';
+import {Gaxios} from 'gaxios';
 import {auth} from 'google-auth-library';
 import {dfareporting_v3_3, google} from 'googleapis';
 import {CLOUD_TASK_QUEUES, CM_TRAFFICKING_SCOPES} from './common/constants';
 import {PlacementsList, GenerateTagsAttributes, RenderImageAttributes} from './common/interfaces';
+
+import * as protos from '@google-cloud/tasks/build/protos/protos';
 
 interface ScreenshotDatastoreEntry {
   campaignId: string;
@@ -32,20 +33,16 @@ interface ScreenshotDatastoreEntry {
 }
 /**
  * Removes all placement IDs already present in Datastore.
- * @param {string} campaignId Datastore query will filter placements based on
- *     this campaign ID.
+ * @param {string} campaignId Datastore query will filter placements based on this campaign ID.
  * @param {!Map<string, CampaignPlacements>} placements Object with placements.
  * @return {!Array<number>}
  */
-async function filterUnprocessedPlacements(
-    campaignId: string, placements: PlacementsList): Promise<PlacementsList> {
+async function filterUnprocessedPlacements(campaignId: string, placements: PlacementsList): Promise<PlacementsList> {
   const datastore = new Datastore();
-  const query = datastore.createQuery('Screenshot')
-                    .filter('campaignId', '=', campaignId.toString());
-  const [processedPlacements] = await datastore.runQuery(query);
+  const query = datastore.createQuery('Screenshot').filter('campaignId', '=', campaignId.toString());
 
-  const processedPlacementIds = new Set(
-      processedPlacements.map((p: ScreenshotDatastoreEntry) => p.placementId));
+  const [processedPlacements] = await datastore.runQuery(query);
+  const processedPlacementIds = new Set(processedPlacements.map((p: ScreenshotDatastoreEntry) => p.placementId));
 
   Object.keys(placements).forEach((placementId) => {
     if (processedPlacementIds.has(placementId)) {
@@ -57,7 +54,7 @@ async function filterUnprocessedPlacements(
 }
 
 /**
- * Response object returned by the getVastTag method
+ * Response object returned by the getVastTag method.
  */
 interface VastTagUnwrapResponse {
   size: string;
@@ -94,8 +91,7 @@ async function getVastTag(tag: string): Promise<VastTagUnwrapResponse> {
   return {
     size: '640x480',
     duration,
-    mediaFileRedirect:
-        `<script>window.location.href='${mp4MediaFile.text()}';</script>`,
+    mediaFileRedirect: `<script>window.location.href='${mp4MediaFile.text()}';</script>`,
   };
 }
 
@@ -105,22 +101,19 @@ async function getVastTag(tag: string): Promise<VastTagUnwrapResponse> {
  *
  * @param {!OAuth2Client} client DCM authenticated client.
  * @param {!object} placements DCM placements list.
- * @param {!object} attributes Attributes received via Pub/Sub
+ * @param {!object} attributes Attributes received via Cloud Tasks.
  */
 async function generateTags(
     dfaClient: dfareporting_v3_3.Dfareporting, placements: PlacementsList,
     attributes: GenerateTagsAttributes, serviceHostname: string) {
-  placements =
-      await filterUnprocessedPlacements(attributes.campaignId, placements);
 
+  placements = await filterUnprocessedPlacements(attributes.campaignId, placements);
   if (Object.keys(placements).length === 0) {
-    console.log(
-        `No placements to process for campaign ${attributes.campaignId}`);
+    console.log(`No placements to process for campaign ${attributes.campaignId}`);
     return;
   }
 
-  const tagsRequest:
-      dfareporting_v3_3.Params$Resource$Placements$Generatetags = {
+  const tagsRequest: dfareporting_v3_3.Params$Resource$Placements$Generatetags = {
     profileId: attributes.profileId,
     campaignId: attributes.campaignId,
     placementIds: Object.keys(placements),
@@ -128,18 +121,13 @@ async function generateTags(
       'PLACEMENT_TAG_JAVASCRIPT',
       'PLACEMENT_TAG_INSTREAM_VIDEO_PREFETCH_VAST_4',
     ],
-    fields:
-        'placementTags/placementId, placementTags/tagDatas/impressionTag, placementTags/tagDatas/format',
+    fields: 'placementTags/placementId, placementTags/tagDatas/impressionTag, placementTags/tagDatas/format',
   };
 
-  const tagsResponse:
-      GaxiosResponse<dfareporting_v3_3.Schema$PlacementsGenerateTagsResponse> =
-          await dfaClient.placements.generatetags(tagsRequest);
+  const tagsResponse = await dfaClient.placements.generatetags(tagsRequest);
 
-  const client = new v2beta3.CloudTasksClient();
-  const parent = client.queuePath(
-      process.env.CLOUD_PROJECT_ID, process.env.CLOUD_RUN_REGION,
-      CLOUD_TASK_QUEUES.renderScreenshot);
+  const client = new CloudTasksClient();
+  const parent = client.queuePath(process.env.CLOUD_PROJECT_ID, process.env.CLOUD_RUN_REGION, CLOUD_TASK_QUEUES.renderScreenshot);
 
   if (!tagsResponse.data.hasOwnProperty('placementTags')) {
     console.log(
@@ -175,24 +163,16 @@ async function generateTags(
 
           const task = {
             httpRequest: {
-              httpMethod: 'POST',
+              httpMethod: protos.google.cloud.tasks.v2.HttpMethod.POST,
               url: `${serviceHostname}/render-screenshot`,
-              body: Buffer.from(JSON.stringify(customAttributes))
-                        .toString('base64'),
+              body: Buffer.from(JSON.stringify(customAttributes)).toString('base64'),
               headers: {'Content-Type': 'application/json'},
             },
           };
 
-          const request = {
-            parent,
-            task,
-          };
-
-          // Send create task request.
-          const [response] = await client.createTask(request);
-          const name = response.name;
-          console.log(`Created render-screenshot task: ${
-              JSON.stringify(customAttributes)}`);
+          const request = {parent, task};
+          await client.createTask(request);
+          console.log(`Created render-screenshot task: ${JSON.stringify(customAttributes)}`);
         }
 
       } else {
@@ -202,11 +182,10 @@ async function generateTags(
             `${attributes.campaignId}, placement: ${placementId}`);
       }
     } else {
-      // TODO: Store to datastore, so it will be removed before calling generate
-      // tags next time?
-      console.log(
-          `NO TAG DATA: Advertiser: ${attributes.advertiserId}, ` +
-          `campaign: ${attributes.campaignId}, placement: ${placementId}`);
+      // TODO: Store to datastore, so it will be removed before calling generate tags next time?
+      console.log( 
+        `NO TAG DATA: Advertiser: ${attributes.advertiserId}, ` +
+        `campaign: ${attributes.campaignId}, placement: ${placementId}`);
     }
   }
 }
@@ -217,26 +196,16 @@ async function generateTags(
  * @param {!Request} req Express HTTP Request.
  * @param {!Response} res Express HTTP Response.
  */
-export async function generateTagsHandler(
-    req: Request, res: Response, next: Function) {
+export async function generateTagsHandler(req: Request, res: Response, next: Function) {
   const attributes: GenerateTagsAttributes = req.body;
-
   console.log(`GENERATE TAGS: ${JSON.stringify(attributes)}`);
 
   try {
     const client = await auth.getClient({scopes: [...CM_TRAFFICKING_SCOPES]});
+    google.options({timeout: 60000, auth: client});
 
-    google.options({
-      timeout: 60000,
-      auth: client,
-    });
-
-    const dfaClient: dfareporting_v3_3.Dfareporting =
-        google.dfareporting('v3.3');
-
-    await generateTags(
-        dfaClient, attributes.placements, attributes,
-        `${req.protocol}://${req.hostname}`);
+    const dfaClient = google.dfareporting('v3.3');
+    await generateTags(dfaClient, attributes.placements, attributes, `${req.protocol}://${req.hostname}`);
 
   } catch (error) {
     console.error(error);
