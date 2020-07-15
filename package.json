@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Capture screenshots of Campaign Manager Tags",
   "config": {
-    "cloud_bucket": "cs_test_output",
+    "cloud_bucket": "cs_output",
     "cloud_run_region": "us-west2",
     "service_name": "creative-screenshot-service",
     "file_path_pattern": "{accountId}/{advertiserId}/{campaignId}/{placementId}_{index}.jpg",
@@ -12,7 +12,7 @@
     "ms_before_screenshot": 1000,
     "ms_before_screenshot_instream": 8000,
     "number_of_screenshots": 15,
-    "service_acccount": "creative-screenshots-test-sa@creative-screenshots-test.iam.gserviceaccount.com"
+    "service_acccount": ""
   },
   "main": "index.js",
   "scripts": {
