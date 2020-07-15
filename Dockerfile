@@ -14,7 +14,7 @@
 
 # Use the official Node.js 10 image.
 # https://hub.docker.com/_/node
-FROM node:10-slim
+FROM node:12-slim
 
 # Create and change to the app directory.
 WORKDIR /usr/src/app
@@ -23,6 +23,8 @@ WORKDIR /usr/src/app
 # A wildcard is used to ensure both package.json AND package-lock.json are copied.
 # Copying this separately prevents re-running npm install on every code change.
 COPY package.json package*.json ./
+
+RUN apt-get update && apt-get install -y wget gnupg2
 
 # Install Chrome
 RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
