@@ -135,6 +135,7 @@ async function postToCloudTasks(
 
   const client = new CloudTasksClient();
   const parent = client.queuePath(process.env.CLOUD_PROJECT_ID, process.env.CLOUD_RUN_REGION, CLOUD_TASK_QUEUES.generateTags);
+  const {client_email:serviceAccountEmail} = await google.auth.getCredentials();
 
   const generateTagsAttributes = {
     ...attributes,
@@ -142,12 +143,15 @@ async function postToCloudTasks(
     accountId,
     placements,
   };
-
+  
   const task = {
     httpRequest: {
       httpMethod: protos.google.cloud.tasks.v2.HttpMethod.POST,
       url: `${serviceHostname}/generate-tags`,
       body: Buffer.from(JSON.stringify(generateTagsAttributes)).toString('base64'),
+      oidcToken: {
+        serviceAccountEmail,
+      },
       headers: {'Content-Type': 'application/json'},
     },
   };
@@ -226,7 +230,7 @@ export async function listPlacementsHandler(req: Request, res: Response, next: F
             `Sending ${Object.keys(placements).length} placements ` +
             `in ${placementChunks.length} chunk(s).`);
         for (const placementChunk of placementChunks) {
-          await postToCloudTasks(accountId, campaignId, placementChunk, attributes, `${req.protocol}://${req.hostname}`);
+          await postToCloudTasks(accountId, campaignId, placementChunk, attributes, `https://${req.hostname}`);
         }
       }
     }

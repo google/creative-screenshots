@@ -74,6 +74,9 @@ Create a new IAM Service Account with the following roles:
 * Cloud Tasks Enqueuer
 * Cloud Datastore User
 * Storage Object Creator
+* Service Account User
+* Cloud Run Invoker
+* Storage Object Viewer
 
 **Enable Campgaign Manager API service:**<br />
 \$ `gcloud services enable dfareporting.googleapis.com`

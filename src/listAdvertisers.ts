@@ -59,7 +59,8 @@ async function listAdvertisers(
 
   const client = new CloudTasksClient();
   const parent = client.queuePath(process.env.CLOUD_PROJECT_ID, process.env.CLOUD_RUN_REGION, CLOUD_TASK_QUEUES.listPlacements);
-
+  const {client_email:serviceAccountEmail} = await google.auth.getCredentials();
+  
   for (const [index, advertiser] of advertisers.entries()) {
     const customAttributes: ListPlacementsAttributes = {
       profileId: attributes.profileId,
@@ -70,6 +71,9 @@ async function listAdvertisers(
       httpRequest: {
         httpMethod: protos.google.cloud.tasks.v2.HttpMethod.POST,
         url: `${serviceHostname}/list-placements`,
+        oidcToken: {
+          serviceAccountEmail,
+        },
         body: Buffer.from(JSON.stringify(customAttributes)).toString('base64'),
         headers: {'Content-Type': 'application/json'},
       },
@@ -101,7 +105,7 @@ export async function listAdvertisersHandler(req: Request, res: Response, next: 
     google.options({timeout: 60000, auth: client});
 
     const dfaClient = google.dfareporting('v3.3');
-    await listAdvertisers(dfaClient, attributes, `${req.protocol}://${req.hostname}`);
+    await listAdvertisers(dfaClient, attributes, `https://${req.hostname}`);
   } catch (error) {
     console.error(error);
     res.status(500).end();

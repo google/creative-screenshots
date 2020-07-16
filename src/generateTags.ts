@@ -128,6 +128,7 @@ async function generateTags(
 
   const client = new CloudTasksClient();
   const parent = client.queuePath(process.env.CLOUD_PROJECT_ID, process.env.CLOUD_RUN_REGION, CLOUD_TASK_QUEUES.renderScreenshot);
+  const {client_email:serviceAccountEmail} = await google.auth.getCredentials();
 
   if (!tagsResponse.data.hasOwnProperty('placementTags')) {
     console.log(
@@ -165,6 +166,9 @@ async function generateTags(
             httpRequest: {
               httpMethod: protos.google.cloud.tasks.v2.HttpMethod.POST,
               url: `${serviceHostname}/render-screenshot`,
+              oidcToken: {
+                serviceAccountEmail,
+              },
               body: Buffer.from(JSON.stringify(customAttributes)).toString('base64'),
               headers: {'Content-Type': 'application/json'},
             },
@@ -206,7 +210,7 @@ export async function generateTagsHandler(req: Request, res: Response, next: Fun
     google.options({timeout: 60000, auth: client});
 
     const dfaClient = google.dfareporting('v3.3');
-    await generateTags(dfaClient, attributes.placements, attributes, `${req.protocol}://${req.hostname}`);
+    await generateTags(dfaClient, attributes.placements, attributes, `https://${req.hostname}`);
 
   } catch (error) {
     console.error(error);
