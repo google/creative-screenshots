@@ -15,13 +15,14 @@
  */
 
 // tslint:disable-next-line:no-require-imports No ts declaration available.
-const {v2beta3} = require('@google-cloud/tasks');
+import {CloudTasksClient} from '@google-cloud/tasks';
 import {Request, Response} from 'express';
-import {GaxiosResponse} from 'gaxios';
-import {auth, OAuth2Client} from 'google-auth-library';
+import {GoogleAuth} from 'google-auth-library';
 import {dfareporting_v3_3, google} from 'googleapis';
 import {CLOUD_TASK_QUEUES, CM_TRAFFICKING_SCOPES} from './common/constants';
 import {ListPlacementsAttributes, CampaignPlacement, PlacementsList} from './common/interfaces';
+
+import * as protos from '@google-cloud/tasks/build/protos/protos';
 
 /**
  * Returns date in YEAR-MONTH-DAY format.
@@ -39,19 +40,19 @@ function formatDate(date: Date, separator = '-') {
  * Uses the CM API to list placements associated with a given advertiserId.
  *
  * @param {!dfareporting_v3_3.Dfareporting} client The DCM authenticated client.
- * @param {!ListPlacementsAttributes} attributes Attributes sent via Pub/Sub.
- * @return {!Promise<Array<dfareporting_v3_3.Schema$Placement>>} Array of DCM
- *     Placements.
+ * @param {!ListPlacementsAttributes} attributes Attributes sent via Cloud Tasks.
+ * @return {!Promise<Array<dfareporting_v3_3.Schema$Placement>>} Array of DCM Placements.
  */
 async function listPlacements(
     dfaClient: dfareporting_v3_3.Dfareporting,
     attributes: ListPlacementsAttributes):
     Promise<dfareporting_v3_3.Schema$Placement[]> {
+
   let placements: dfareporting_v3_3.Schema$Placement[] = [];
   let counter = 0;
   let nextPageToken: string = undefined;
   const date = new Date();
-  date.setDate(date.getDate() - 1);  // Yesterday
+  date.setDate(date.getDate() - 1);
 
   do {
     const placementsRequest:
@@ -62,17 +63,14 @@ async function listPlacements(
       compatibilities: ['DISPLAY', 'IN_STREAM_VIDEO'],
       minEndDate: formatDate(date),
       pageToken: nextPageToken,
-      fields:
-          'nextPageToken,placements/id,placements/accountId,placements/advertiserId,placements/campaignId,placements/size/width,placements/size/height',
+      fields: 'nextPageToken,placements/id,placements/accountId,placements/advertiserId,placements/campaignId,placements/size/width,placements/size/height',
     };
 
     if (!nextPageToken) {
       delete placementsRequest.pageToken;
     }
 
-    const placementsResponse:
-        GaxiosResponse<dfareporting_v3_3.Schema$PlacementsListResponse> =
-            await dfaClient.placements.list(placementsRequest);
+    const placementsResponse = await dfaClient.placements.list(placementsRequest);
     placements = placements.concat(placementsResponse.data.placements);
     nextPageToken = placementsResponse.data.nextPageToken;
 
@@ -87,8 +85,7 @@ async function listPlacements(
 
 /**
  * Groups all placement ID and Size by campaign ID into a Map.
- * @param {!Array<dfareporting_v3_3.Schema$Placement>} placements Array with
- *     placements.
+ * @param {!Array<dfareporting_v3_3.Schema$Placement>} placements Array with placements.
  * @return {!Map<string, CampaignPlacements>} Map with campaignId, placements.
  */
 function groupPlacementsByCampaign(
@@ -105,8 +102,7 @@ function groupPlacementsByCampaign(
       size: `${placement.size.width}x${placement.size.height}`,
     };
 
-    placementByCampaign.get(placement.campaignId)[placement.id] =
-        campaignPlacements;
+    placementByCampaign.get(placement.campaignId)[placement.id] = campaignPlacements;
   }
   return placementByCampaign;
 }
@@ -116,34 +112,30 @@ function groupPlacementsByCampaign(
  * @param {dfareporting_v3_3.Schema$Placement} placement Placement to verify.
  * @return {boolean} false if placement size is 1x1.
  */
-function filterOutTrackingPlacements(
-    placement: dfareporting_v3_3.Schema$Placement) {
+function filterOutTrackingPlacements(placement: dfareporting_v3_3.Schema$Placement) {
   return placement.size.width !== 1 && placement.size.height !== 1;
 }
 
 /**
- * Publishes a message to the generate tags channel for a campaign and its
- * placements.
+ * Publishes a cloud task to generate tags for placements.
  * @param {string} accountId CM Account ID.
  * @param {string} campaignId CM Campaign ID.
- * @param {Array<dfareporting_v3_3.Schema$Placement>} placements Array of all
- *     placements for this campaign ID.
- * @param {ListPlacementsAttributes} attributes Event attributes from the Cloud
- *     Function.
+ * @param {Array<dfareporting_v3_3.Schema$Placement>} placements Array of all placements for this campaign ID.
+ * @param {ListPlacementsAttributes} attributes Event attributes from the Cloud Tasks.
  */
-async function publishToPubSub(
+async function postToCloudTasks(
     accountId: string, campaignId: string, placements: PlacementsList,
     attributes: ListPlacementsAttributes,
     serviceHostname: string): Promise<void> {
+
   if (Object.keys(placements).length === 0) {
     console.log(`No placements for campaign ${campaignId}`);
     return;
   }
 
-  const client = new v2beta3.CloudTasksClient();
-  const parent = client.queuePath(
-      process.env.CLOUD_PROJECT_ID, process.env.CLOUD_RUN_REGION,
-      CLOUD_TASK_QUEUES.generateTags);
+  const client = new CloudTasksClient();
+  const parent = client.queuePath(process.env.CLOUD_PROJECT_ID, process.env.CLOUD_RUN_REGION, CLOUD_TASK_QUEUES.generateTags);
+  const {client_email:serviceAccountEmail} = await google.auth.getCredentials();
 
   const generateTagsAttributes = {
     ...attributes,
@@ -151,13 +143,15 @@ async function publishToPubSub(
     accountId,
     placements,
   };
-
+  
   const task = {
     httpRequest: {
-      httpMethod: 'POST',
+      httpMethod: protos.google.cloud.tasks.v2.HttpMethod.POST,
       url: `${serviceHostname}/generate-tags`,
-      body: Buffer.from(JSON.stringify(generateTagsAttributes))
-                .toString('base64'),
+      body: Buffer.from(JSON.stringify(generateTagsAttributes)).toString('base64'),
+      oidcToken: {
+        serviceAccountEmail,
+      },
       headers: {'Content-Type': 'application/json'},
     },
   };
@@ -167,12 +161,8 @@ async function publishToPubSub(
     task,
   };
 
-  // Send create task request.
-  const [response] = await client.createTask(request);
-  const name = response.name;
-
-  console.log(
-      `Created generate-tags task: ${JSON.stringify(generateTagsAttributes)}`);
+  await client.createTask(request);
+  console.log(`Created generate-tags task: ${JSON.stringify(generateTagsAttributes)}`);
 }
 
 /**
@@ -183,11 +173,12 @@ async function publishToPubSub(
  * @param chunkSize {number} Maximum size of the placement list.
  * @return Array<PlacementList>
  */
-function chunkPlacementList(
-    placementList: PlacementsList, chunkSize: number): PlacementsList[] {
+function chunkPlacementList(placementList: PlacementsList, chunkSize: number): PlacementsList[] {
+
   const results: PlacementsList[] = [];
   let index = 0;
   let chunk: PlacementsList = {};
+
   for (const [key, value] of Object.entries(placementList)) {
     chunk[key] = value;
     if (++index % chunkSize === 0) {
@@ -208,30 +199,22 @@ function chunkPlacementList(
  * @param {!Request} req Express HTTP Request.
  * @param {!Response} res Express HTTP Response.
  */
-export async function listPlacementsHandler(
-    req: Request, res: Response, next: Function): Promise<void> {
+export async function listPlacementsHandler(req: Request, res: Response, next: Function): Promise<void> {
+  
   const attributes: ListPlacementsAttributes = req.body;
-
   console.log(`LIST PLACEMENTS: ${JSON.stringify(attributes)}`);
 
   try {
-    const client: OAuth2Client =
-        await auth.getClient({scopes: [...CM_TRAFFICKING_SCOPES]});
+    const auth = new GoogleAuth({scopes: [...CM_TRAFFICKING_SCOPES]});
+    const client = await auth.getClient();
+    google.options({timeout: 60000, auth: client});
 
-    google.options({
-      timeout: 60000,
-      auth: client,
-    });
-
-    const dfaClient: dfareporting_v3_3.Dfareporting =
-        google.dfareporting('v3.3');
-
+    const dfaClient = google.dfareporting('v3.3');
     let allPlacements = await listPlacements(dfaClient, attributes);
     allPlacements = allPlacements.filter(filterOutTrackingPlacements);
 
     if (allPlacements.length === 0) {
-      console.log(
-          `No placements returned for advertiser ${attributes.advertiserId}`);
+      console.log(`No placements returned for advertiser ${attributes.advertiserId}`);
       res.status(204).end();
       return;
     }
@@ -247,16 +230,14 @@ export async function listPlacementsHandler(
             `Sending ${Object.keys(placements).length} placements ` +
             `in ${placementChunks.length} chunk(s).`);
         for (const placementChunk of placementChunks) {
-          await publishToPubSub(
-              accountId, campaignId, placementChunk, attributes,
-              `${req.protocol}://${req.hostname}`);
+          await postToCloudTasks(accountId, campaignId, placementChunk, attributes, `https://${req.hostname}`);
         }
       }
     }
 
   } catch (error) {
     console.error(error);
-    next();
+    res.status(500).end();
   }
 
   res.status(204).end();

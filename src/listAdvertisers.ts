@@ -14,27 +14,28 @@
  * limitations under the License.
  */
 
-// tslint:disable-next-line:no-require-imports No ts declaration available.
-const {v2beta3} = require('@google-cloud/tasks');
+import {CloudTasksClient} from '@google-cloud/tasks';
 import {Request, Response} from 'express';
-import {auth, OAuth2Client} from 'google-auth-library';
+import {GoogleAuth} from 'google-auth-library';
 import {dfareporting_v3_3, google} from 'googleapis';
 
 import {CM_TRAFFICKING_SCOPES, CLOUD_TASK_QUEUES} from './common/constants';
 import {ListAdvertisersAttributes, ListPlacementsAttributes} from './common/interfaces';
+
+import * as protos from '@google-cloud/tasks/build/protos/protos';
 
 
 /**
  * Uses the DCM API to list advertisers associated with a given profileId.
  *
  * @param {!dfareporting_v3_3.Dfareporting} client The DCM authenticated client.
- * @param {!ListAdvertisersAttributes} attributes Attributes received via.
- *     Pub/Sub.
+ * @param {!ListAdvertisersAttributes} attributes Attributes received via Cloud Task.
  */
 async function listAdvertisers(
     dfaClient: dfareporting_v3_3.Dfareporting,
     attributes: ListAdvertisersAttributes,
     serviceHostname: string): Promise<void> {
+
   let nextPageToken: string = undefined;
   let advertisers: dfareporting_v3_3.Schema$Advertiser[] = [];
   let counter = 0;
@@ -50,19 +51,16 @@ async function listAdvertisers(
       delete advertisersRequest.pageToken;
     }
 
-    const advertisersResponse =
-        await dfaClient.advertisers.list(advertisersRequest);
+    const advertisersResponse = await dfaClient.advertisers.list(advertisersRequest);
     advertisers = advertisers.concat(advertisersResponse.data.advertisers);
     nextPageToken = advertisersResponse.data.nextPageToken;
-    console.log(`${advertisers.length} - Advertisers on page ${
-        ++counter} with token: ${nextPageToken}`);
+    console.log(`${advertisers.length} - Advertisers on page ${++counter} with token: ${nextPageToken}`);
   } while (nextPageToken !== undefined);
 
-  const client = new v2beta3.CloudTasksClient();
-  const parent = client.queuePath(
-      process.env.CLOUD_PROJECT_ID, process.env.CLOUD_RUN_REGION,
-      CLOUD_TASK_QUEUES.listPlacements);
-
+  const client = new CloudTasksClient();
+  const parent = client.queuePath(process.env.CLOUD_PROJECT_ID, process.env.CLOUD_RUN_REGION, CLOUD_TASK_QUEUES.listPlacements);
+  const {client_email:serviceAccountEmail} = await google.auth.getCredentials();
+  
   for (const [index, advertiser] of advertisers.entries()) {
     const customAttributes: ListPlacementsAttributes = {
       profileId: attributes.profileId,
@@ -71,20 +69,18 @@ async function listAdvertisers(
 
     const task = {
       httpRequest: {
-        httpMethod: 'POST',
+        httpMethod: protos.google.cloud.tasks.v2.HttpMethod.POST,
         url: `${serviceHostname}/list-placements`,
+        oidcToken: {
+          serviceAccountEmail,
+        },
         body: Buffer.from(JSON.stringify(customAttributes)).toString('base64'),
         headers: {'Content-Type': 'application/json'},
       },
     };
 
-    const request = {
-      parent,
-      task,
-    };
-
-    const [response] = await client.createTask(request);
-    const name = response.name;
+    const request = {parent, task};
+    await client.createTask(request);
     console.log(`${
         Math.round((index / advertisers.length) * 100)
             .toString()
@@ -99,22 +95,20 @@ async function listAdvertisers(
  * @param {!Request} req Express HTTP Request.
  * @param {!Response} res Express HTTP Response.
  */
-export async function listAdvertisersHandler(
-    req: Request, res: Response, next: Function): Promise<void> {
+export async function listAdvertisersHandler(req: Request, res: Response, next: Function): Promise<void> {
   const attributes: ListAdvertisersAttributes = req.body;
   console.log(`LIST ADVERTISERS: ${JSON.stringify(attributes)}`);
+
   try {
-    const client: OAuth2Client =
-        await auth.getClient({scopes: [...CM_TRAFFICKING_SCOPES]});
+    const auth = new GoogleAuth({scopes: [...CM_TRAFFICKING_SCOPES]});
+    const client = await auth.getClient();
     google.options({timeout: 60000, auth: client});
-    const dfaClient: dfareporting_v3_3.Dfareporting =
-        google.dfareporting('v3.3');
-    await listAdvertisers(
-        dfaClient, attributes, `${req.protocol}://${req.hostname}`);
+
+    const dfaClient = google.dfareporting('v3.3');
+    await listAdvertisers(dfaClient, attributes, `https://${req.hostname}`);
   } catch (error) {
     console.error(error);
-    next();
+    res.status(500).end();
   }
-
   res.status(204).end();
 }
