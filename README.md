@@ -104,7 +104,7 @@ service account email address.
 ### From GCR:
 ```
 $ gcloud beta run deploy [SERVICE_NAME] \
---image gcr.io/creative-screenshots-external/creative-screenshots:stable \
+--image gcr.io/creative-screenshots-external/creative-screenshot-service:stable \
 --memory 2G \
 --platform managed \
 --service-account "[SERVICE_ACCOUNT_EMAIL]" \
