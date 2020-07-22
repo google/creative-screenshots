@@ -111,7 +111,7 @@ $ gcloud beta run deploy [SERVICE_NAME] \
 --update-env-vars \
 CLOUD_PROJECT_ID=$(gcloud config get-value project),\
 CLOUD_RUN_REGION=us-central1,\
-CLOUD_BUCKET=creative-screenshots-test-output,\
+CLOUD_BUCKET=[CLOUD STORAGE BUCKET NAME],\
 FILE_PATH_PATTERN="{accountId}/{advertiserId}/{campaignId}/{placementId}_{index}.jpg",\
 SCREENSHOT_PADDING=16,\
 SCREENSHOT_QUALITY=100,\
