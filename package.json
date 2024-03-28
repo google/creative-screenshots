@@ -39,7 +39,7 @@
     "@types/request": "^2.48.5",
     "body-parser": "^1.19.0",
     "cheerio": "^1.0.0-rc.12",
-    "express": "^4.17.3",
+    "express": "^4.19.2",
     "gaxios": "^3.0.4",
     "google-auth-library": "^6.0.5",
     "googleapis": "^54.0.0",
